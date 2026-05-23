@@ -57,12 +57,16 @@ class LogFileTailer:
             # 2. Check for rotation/truncation
             rotated = False
             if f is None:
-                # First open
+                # First open, or file was deleted and recreated.
                 try:
-                    # Open at end of file initially to avoid dumping massive backlogs,
-                    # unless file size is small.
                     f = open(self.file_path, "r", encoding="utf-8", errors="ignore")
-                    f.seek(0, os.SEEK_END)
+                    if self.last_inode is None:
+                        # On initial open, start at end to avoid emitting old content.
+                        f.seek(0, os.SEEK_END)
+                    else:
+                        # File disappeared and recreated while tailer was running.
+                        # Read from the beginning of the new file.
+                        logger.info(f"File reappeared, reading from beginning: {self.file_path}")
                     self.last_inode = inode
                     self.last_size = size
                 except Exception as e:
