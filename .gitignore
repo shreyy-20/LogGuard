@@ -2,11 +2,17 @@
 logs/
 data/
 *.db
+*.db-*
 *.sqlite
+*.sqlite-*
 *.log
+.pytest_cache/
 .venv/
+venv/
 .env
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
 .DS_Store
 .vscode/
