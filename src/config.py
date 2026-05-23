@@ -12,7 +12,7 @@ class LogSourceConfig:
 
 class DatabaseConfig:
     def __init__(self, data: Dict[str, Any]):
-        self.db_path = data.get("db_path", "logguard.db")
+        self.db_path = os.getenv("DB_PATH", data.get("db_path", "logguard.db"))
         self.batch_size = int(data.get("batch_size", 100))
         self.flush_interval_seconds = float(data.get("flush_interval_seconds", 1.0))
 
@@ -48,6 +48,10 @@ class AppConfig:
     def __init__(self, data: Dict[str, Any]):
         self.database = DatabaseConfig(data.get("database", {}))
         self.sources = [LogSourceConfig(s) for s in data.get("sources", [])]
+        logs_dir = os.getenv("LOGS_DIR")
+        if logs_dir:
+            for source in self.sources:
+                source.path = os.path.join(logs_dir, os.path.basename(source.path))
         self.rules = RuleConfig(data.get("rules", {}))
         self.notifications = NotificationConfig(data.get("notifications", {}))
 

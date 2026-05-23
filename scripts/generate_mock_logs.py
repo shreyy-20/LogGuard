@@ -4,7 +4,7 @@ import random
 from datetime import datetime
 
 # Define target paths
-LOGS_DIR = "logs"
+LOGS_DIR = os.getenv("LOGS_DIR", "logs")
 SYSLOG_PATH = os.path.join(LOGS_DIR, "syslog")
 AUTH_PATH = os.path.join(LOGS_DIR, "auth.log")
 KERN_PATH = os.path.join(LOGS_DIR, "kern.log")

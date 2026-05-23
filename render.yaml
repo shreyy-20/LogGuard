@@ -3,24 +3,19 @@
 
 services:
   - type: web
-    name: LogGuard Web
+    name: LogGuard
     runtime: docker
     branch: main
     plan: starter
     buildCommand: ""
-    startCommand: "uvicorn src.web.app:app --host 0.0.0.0 --port 8000 --workers 4"
+    startCommand: "bash ./scripts/render_start.sh"
     envVars:
       - key: DB_PATH
         value: /var/lib/logguard/logguard.db
         sync: false
-
-  - type: worker
-    name: LogGuard Daemon
-    runtime: docker
-    branch: main
-    plan: starter
-    startCommand: "python -m src.main"
-    envVars:
       - key: LOGS_DIR
-        value: /var/log
+        value: /app/logs
+        sync: false
+      - key: DEMO_LOGS
+        value: "true"
         sync: false
