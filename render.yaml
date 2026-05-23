@@ -11,7 +11,7 @@ services:
     startCommand: "bash ./scripts/render_start.sh"
     envVars:
       - key: DB_PATH
-        value: /var/lib/logguard/logguard.db
+        value: /app/data/logguard.db
         sync: false
       - key: LOGS_DIR
         value: /app/logs

@@ -6,7 +6,7 @@ mkdir -p "${LOGS_DIR:-/app/logs}"
 
 # Render containers do not expose host Linux logs, so demo deploys can generate
 # synthetic traffic for the dashboard to ingest.
-if [ "${DEMO_LOGS:-false}" = "true" ]; then
+if [ "${DEMO_LOGS:-true}" = "true" ]; then
   python scripts/generate_mock_logs.py &
 fi
 

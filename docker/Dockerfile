@@ -30,5 +30,5 @@ RUN mkdir -p /app/logs /app/data
 ENV PYTHONUNBUFFERED=1
 ENV DB_PATH=/app/data/logguard.db
 
-# Default command - can be overridden in docker-compose.yml
-CMD ["python", "-m", "src.main"]
+# Default command for hosted web deployments.
+CMD ["bash", "./scripts/render_start.sh"]
