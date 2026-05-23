@@ -11,10 +11,10 @@ services:
     startCommand: "bash ./scripts/render_start.sh"
     envVars:
       - key: DB_PATH
-        value: /app/data/logguard.db
+        value: data/logguard.db
         sync: false
       - key: LOGS_DIR
-        value: /app/logs
+        value: logs
         sync: false
       - key: DEMO_LOGS
         value: "true"

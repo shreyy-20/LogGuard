@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 set -e
 
-mkdir -p "$(dirname "${DB_PATH:-/app/data/logguard.db}")"
-mkdir -p "${LOGS_DIR:-/app/logs}"
+export DB_PATH="${DB_PATH:-data/logguard.db}"
+export LOGS_DIR="${LOGS_DIR:-logs}"
+
+mkdir -p "$(dirname "$DB_PATH")"
+mkdir -p "$LOGS_DIR"
 
 # Render containers do not expose host Linux logs, so demo deploys can generate
 # synthetic traffic for the dashboard to ingest.
@@ -14,4 +17,4 @@ fi
 python -m src.main &
 
 # Then start FastAPI web console using Uvicorn on the Render-assigned port.
-exec uvicorn src.web.app:app --host 0.0.0.0 --port "${PORT:-8000}" --workers 4
+exec uvicorn src.web.app:app --host 0.0.0.0 --port "${PORT:-8000}" --workers "${WEB_CONCURRENCY:-1}"
