@@ -1,0 +1,34 @@
+name: Deploy to Render
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    name: Trigger Render Deploys
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render Web Deploy
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID_WEB: ${{ secrets.RENDER_SERVICE_ID_WEB }}
+        run: |
+          set -e
+          echo "Triggering Render deploy for web service..."
+          curl -sSf -X POST "https://api.render.com/v1/services/${RENDER_SERVICE_ID_WEB}/deploys" \
+            -H "Accept: application/json" \
+            -H "Authorization: Bearer ${RENDER_API_KEY}" \
+            -d '{}'
+
+      - name: Trigger Render Daemon Deploy
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID_DAEMON: ${{ secrets.RENDER_SERVICE_ID_DAEMON }}
+        run: |
+          set -e
+          echo "Triggering Render deploy for daemon service..."
+          curl -sSf -X POST "https://api.render.com/v1/services/${RENDER_SERVICE_ID_DAEMON}/deploys" \
+            -H "Accept: application/json" \
+            -H "Authorization: Bearer ${RENDER_API_KEY}" \
+            -d '{}'

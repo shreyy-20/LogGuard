@@ -1,0 +1,12 @@
+# Ignore runtime artifacts and secrets
+logs/
+data/
+*.db
+*.sqlite
+*.log
+.venv/
+.env
+__pycache__/
+*.pyc
+.DS_Store
+.vscode/

@@ -1,0 +1,78 @@
+# LogGuard Main Configuration
+
+database:
+  db_path: "logguard.db"
+  batch_size: 100
+  flush_interval_seconds: 1.0
+
+# Log files to monitor and tail
+sources:
+  - path: "logs/syslog"
+    type: "syslog"
+    name: "System Log"
+  - path: "logs/auth.log"
+    type: "auth"
+    name: "Authentication Log"
+  - path: "logs/kern.log"
+    type: "kern"
+    name: "Kernel Log"
+  - path: "logs/app.log"
+    type: "custom"
+    name: "Custom Application Log"
+    # Custom format: JSON-like or custom regex. Let's support regex parsing.
+    # Format: [2026-05-24 01:40:15] [LEVEL] [Source] Message details
+    custom_regex: '^\\[(?P<timestamp>[^\\]]+)\\]\s+\\[(?P<level>[^\\]]+)\\]\s+\\[(?P<source>[^\\]]+)\\]\s+(?P<message>.*)$'
+    custom_timestamp_format: "%Y-%m-%d %H:%M:%S"
+
+# Alert rules and threat signatures
+rules:
+  # SSH/Auth Brute Force Detection
+  brute_force:
+    enabled: true
+    threshold_attempts: 5
+    window_seconds: 60
+    alert_severity: "CRITICAL"
+
+  # Repeated Failures Detection (any log message repeating frequently)
+  repeated_failures:
+    enabled: true
+    threshold_repeats: 10
+    window_seconds: 30
+    alert_severity: "WARNING"
+
+  # Critical signature keywords to trigger immediate alerts
+  critical_keywords:
+    - pattern: "(?i)out of memory|oom-killer"
+      severity: "CRITICAL"
+      category: "Resource Exhaustion"
+      message: "System running out of memory (OOM Killer triggered)"
+    - pattern: "(?i)segfault|segmentation fault"
+      severity: "CRITICAL"
+      category: "Application Crash"
+      message: "Process segmentation fault detected"
+    - pattern: "(?i)disk error|read-only file system|io error"
+      severity: "CRITICAL"
+      category: "Hardware Failure"
+      message: "Kernel reported hard drive or filesystem error"
+    - pattern: "(?i)kernel panic|panic:"
+      severity: "CRITICAL"
+      category: "System Crash"
+      message: "Kernel panic warning detected"
+    - pattern: "(?i)unauthorized|access denied|permission denied"
+      severity: "WARNING"
+      category: "Access Control"
+      message: "Unauthorized access attempts or permissions failure"
+
+# Notification settings
+notifications:
+  desktop:
+    enabled: true
+    timeout_seconds: 5
+  email:
+    enabled: false  # Set to true to activate
+    smtp_host: "smtp.gmail.com"
+    smtp_port: 587
+    smtp_username: "alerts@example.com"
+    smtp_password: "CHANGE_ME"  # DO NOT COMMIT SECRETS: use environment variables in production
+    from_email: "logguard-alerts@example.com"
+    to_email: "admin@example.com"

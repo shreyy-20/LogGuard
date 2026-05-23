@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LogGuard - Linux Log Monitoring & Analysis</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom Style -->
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo-container">
+                <span class="logo-icon">🛡️</span>
+                <div class="logo-text">
+                    <h1>LogGuard</h1>
+                    <span class="status-badge online"><span class="pulse"></span>Daemon Active</span>
+                </div>
+            </div>
+            <nav class="nav-menu">
+                <button class="nav-item active" data-target="dashboard">
+                    <span class="icon">📊</span> Dashboard
+                </button>
+                <button class="nav-item" data-target="explorer">
+                    <span class="icon">🔍</span> Log Explorer
+                </button>
+                <button class="nav-item" data-target="alerts">
+                    <span class="icon">🚨</span> Alerts
+                    <span id="alerts-count-badge" class="badge red">0</span>
+                </button>
+            </nav>
+            <div class="sidebar-footer">
+                <p>System Monitor v1.0.0</p>
+                <p class="host-info">Localhost Server</p>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Top Header -->
+            <header class="main-header">
+                <div class="header-title">
+                    <h2 id="section-title">Dashboard</h2>
+                    <p id="section-desc">Overview of real-time server security and log traffic.</p>
+                </div>
+                <div class="header-actions">
+                    <span class="clock" id="live-clock">--:--:--</span>
+                    <button class="btn btn-primary" onclick="refreshData()">
+                        <span class="icon">🔄</span> Refresh
+                    </button>
+                </div>
+            </header>
+
+            <!-- Dashboard View -->
+            <section id="view-dashboard" class="content-section active">
+                <!-- Stats Cards Row -->
+                <div class="stats-grid">
+                    <div class="stats-card card-cyan">
+                        <div class="card-icon">📋</div>
+                        <div class="card-info">
+                            <h3>Total Logs</h3>
+                            <p id="stat-total-logs">0</p>
+                        </div>
+                    </div>
+                    <div class="stats-card card-red">
+                        <div class="card-icon">🚨</div>
+                        <div class="card-info">
+                            <h3>Critical Threats</h3>
+                            <p id="stat-critical-alerts">0</p>
+                        </div>
+                    </div>
+                    <div class="stats-card card-yellow">
+                        <div class="card-icon">⚠️</div>
+                        <div class="card-info">
+                            <h3>Warnings</h3>
+                            <p id="stat-warnings">0</p>
+                        </div>
+                    </div>
+                    <div class="stats-card card-green">
+                        <div class="card-icon">⚡</div>
+                        <div class="card-info">
+                            <h3>Ingest Health</h3>
+                            <p id="stat-health">100%</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="charts-grid">
+                    <div class="chart-card glass">
+                        <h3>Log Severity Distribution</h3>
+                        <div class="chart-container">
+                            <canvas id="chart-levels"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card glass">
+                        <h3>Recent Log Rate (10m)</h3>
+                        <div class="chart-container">
+                            <canvas id="chart-rates"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Split Table Layout -->
+                <div class="dashboard-tables-grid">
+                    <!-- Recent Logs -->
+                    <div class="table-card glass">
+                        <div class="card-header">
+                            <h3>Latest Ingested Logs</h3>
+                            <button class="btn-text" onclick="switchTab('explorer')">View All &rarr;</button>
+                        </div>
+                        <div class="table-wrapper">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Level</th>
+                                        <th>Source</th>
+                                        <th>Message</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dashboard-recent-logs">
+                                    <tr><td colspan="4" class="text-center text-dim">Loading logs...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Recent Alerts -->
+                    <div class="table-card glass">
+                        <div class="card-header">
+                            <h3>Active Security Threats</h3>
+                            <button class="btn-text" onclick="switchTab('alerts')">Manage Alerts &rarr;</button>
+                        </div>
+                        <div class="table-wrapper">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Alert Type</th>
+                                        <th>Severity</th>
+                                        <th>Message</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dashboard-recent-alerts">
+                                    <tr><td colspan="4" class="text-center text-dim">No alerts triggered.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Log Explorer View -->
+            <section id="view-explorer" class="content-section">
+                <!-- Filters Card -->
+                <div class="filter-card glass">
+                    <form id="filter-form" onsubmit="searchLogs(event)">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="filter-level">Severity Level</label>
+                                <select id="filter-level">
+                                    <option value="">ALL LEVELS</option>
+                                    <option value="INFO">INFO</option>
+                                    <option value="WARNING">WARNING</option>
+                                    <option value="ERROR">ERROR</option>
+                                    <option value="CRITICAL">CRITICAL</option>
+                                    <option value="DEBUG">DEBUG</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="filter-program">Program / Process</label>
+                                <input type="text" id="filter-program" placeholder="e.g. sshd, kernel">
+                            </div>
+                            <div class="form-group">
+                                <label for="filter-keyword">FTS Keyword Search</label>
+                                <input type="text" id="filter-keyword" placeholder="Search message text...">
+                            </div>
+                            <div class="form-group">
+                                <label for="filter-since">Since Time</label>
+                                <input type="datetime-local" id="filter-since">
+                            </div>
+                            <div class="form-group">
+                                <label for="filter-until">Until Time</label>
+                                <input type="datetime-local" id="filter-until">
+                            </div>
+                            <div class="form-group form-actions-group">
+                                <button type="submit" class="btn btn-primary btn-full">Search Logs</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Logs Table Card -->
+                <div class="table-card glass">
+                    <div class="table-wrapper explorer-table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Level</th>
+                                    <th>Source File</th>
+                                    <th>Program</th>
+                                    <th>PID</th>
+                                    <th>Message</th>
+                                </tr>
+                            </thead>
+                            <tbody id="explorer-logs-table">
+                                <tr><td colspan="6" class="text-center text-dim">Run a search to display results.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Alerts View -->
+            <section id="view-alerts" class="content-section">
+                <div class="alerts-layout">
+                    <div class="alerts-controls">
+                        <button class="btn btn-secondary active" id="btn-unresolved-alerts" onclick="toggleUnresolved(true)">Active Alerts</button>
+                        <button class="btn btn-secondary" id="btn-all-alerts" onclick="toggleUnresolved(false)">All Alerts History</button>
+                    </div>
+                    <div class="alerts-container" id="alerts-list">
+                        <!-- Dynamic Alert Cards will load here -->
+                        <div class="text-center text-dim padding-20">Loading alerts...</div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Client-Side App Script -->
+    <script>
+        // App state variables
+        let activeTab = 'dashboard';
+        let unresolvedAlertsOnly = true;
+        let chartLevels = null;
+        let chartRates = null;
+
+        // Clock Script
+        setInterval(() => {
+            document.getElementById('live-clock').innerText = new Date().toLocaleTimeString();
+        }, 1000);
+
+        // Sidebar Navigation routing
+        document.querySelectorAll('.nav-item').forEach(button => {
+            button.addEventListener('click', () => {
+                const target = button.getAttribute('data-target');
+                switchTab(target);
+            });
+        });
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
+
+            const activeBtn = document.querySelector(`.nav-item[data-target="${tabId}"]`);
+            if (activeBtn) activeBtn.classList.add('active');
+
+            const section = document.getElementById(`view-${tabId}`);
+            if (section) section.classList.add('active');
+
+            // Update Header Title
+            const titleElem = document.getElementById('section-title');
+            const descElem = document.getElementById('section-desc');
+
+            if (tabId === 'dashboard') {
+                titleElem.innerText = 'Dashboard';
+                descElem.innerText = 'Overview of real-time server security and log traffic.';
+                refreshDashboardCharts();
+            } else if (tabId === 'explorer') {
+                titleElem.innerText = 'Log Explorer';
+                descElem.innerText = 'Search, filter, and run full-text indexing queries on system logs.';
+                // Trigger an initial empty search if first time
+                if (document.getElementById('explorer-logs-table').innerHTML.includes('Run a search')) {
+                    fetchLogs();
+                }
+            } else if (tabId === 'alerts') {
+                titleElem.innerText = 'Security Alerts';
+                descElem.innerText = 'Review, analyze, and resolve real-time anomaly notifications.';
+                fetchAlertsTab();
+            }
+            activeTab = tabId;
+        }
+
+        // Fetch Functions
+        async function refreshData() {
+            if (activeTab === 'dashboard') {
+                await refreshDashboardStats();
+                await fetchRecentLogs();
+                await fetchRecentAlerts();
+            } else if (activeTab === 'explorer') {
+                await fetchLogs();
+            } else if (activeTab === 'alerts') {
+                await fetchAlertsTab();
+            }
+        }
+
+        // Format dates helper
+        function formatDateTime(str) {
+            if (!str) return '';
+            // Convert standard input date to DB YYYY-MM-DD HH:MM:SS format
+            const dt = new Date(str);
+            if (isNaN(dt.getTime())) return '';
+            const year = dt.getFullYear();
+            const month = String(dt.getMonth() + 1).padStart(2, '0');
+            const day = String(dt.getDate()).padStart(2, '0');
+            const hours = String(dt.getHours()).padStart(2, '0');
+            const minutes = String(dt.getMinutes()).padStart(2, '0');
+            const seconds = '00';
+            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        }
+
+        async function fetchRecentLogs() {
+            try {
+                const res = await fetch('/api/logs?limit=8');
+                const data = await res.json();
+                const tbody = document.getElementById('dashboard-recent-logs');
+                tbody.innerHTML = '';
+                
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-dim">No logs parsed yet.</td></tr>';
+                    return;
+                }
+
+                data.forEach(log => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="text-nowrap">${log.timestamp}</td>
+                            <td><span class="level-badge ${log.log_level.toLowerCase()}">${log.log_level}</span></td>
+                            <td class="text-cyan">${log.program}</td>
+                            <td class="text-message" title="${escapeHtml(log.message)}">${escapeHtml(log.message)}</td>
+                        </tr>
+                    `;
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function fetchRecentAlerts() {
+            try {
+                const res = await fetch('/api/alerts?limit=5&unresolved_only=true');
+                const data = await res.json();
+                const tbody = document.getElementById('dashboard-recent-alerts');
+                tbody.innerHTML = '';
+
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-green">System secure. No threats detected!</td></tr>';
+                    return;
+                }
+
+                data.forEach(a => {
+                    tbody.innerHTML += `
+                        <tr class="alert-row">
+                            <td class="text-nowrap">${a.timestamp.substring(11)}</td>
+                            <td class="text-bold">${a.alert_type}</td>
+                            <td><span class="level-badge ${a.severity.toLowerCase()}">${a.severity}</span></td>
+                            <td class="text-message text-yellow">${escapeHtml(a.message)}</td>
+                        </tr>
+                    `;
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function refreshDashboardStats() {
+            try {
+                const res = await fetch('/api/stats');
+                const stats = await res.json();
+                
+                document.getElementById('stat-total-logs').innerText = stats.total_logs || 0;
+                document.getElementById('stat-critical-alerts').innerText = stats.levels?.CRITICAL || 0;
+                document.getElementById('stat-warnings').innerText = stats.levels?.WARNING || 0;
+                
+                // Update badge in sidebar
+                const activeAlertsRes = await fetch('/api/alerts?limit=1&unresolved_only=true');
+                const activeAlerts = await activeAlertsRes.json();
+                const badge = document.getElementById('alerts-count-badge');
+                if (activeAlerts.length > 0) {
+                    badge.innerText = '!';
+                    badge.style.display = 'inline-block';
+                } else {
+                    badge.style.display = 'none';
+                }
+
+                updateCharts(stats);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function updateCharts(stats) {
+            // Doughnut chart update
+            const levels = stats.levels || {};
+            const labels = ['INFO', 'WARNING', 'ERROR', 'CRITICAL', 'DEBUG'];
+            const dataCounts = labels.map(l => levels[l] || 0);
+
+            if (chartLevels) {
+                chartLevels.data.datasets[0].data = dataCounts;
+                chartLevels.update();
+            } else {
+                const ctx = document.getElementById('chart-levels').getContext('2d');
+                chartLevels = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: dataCounts,
+                            backgroundColor: [
+                                'rgba(16, 185, 129, 0.65)',  // INFO - green
+                                'rgba(245, 158, 11, 0.65)',  // WARNING - amber
+                                'rgba(239, 68, 68, 0.65)',   // ERROR - red
+                                'rgba(220, 38, 38, 0.95)',   // CRITICAL - deep red
+                                'rgba(107, 114, 128, 0.65)'  // DEBUG - gray
+                            ],
+                            borderColor: 'rgba(255, 255, 255, 0.05)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: { color: '#a0aec0', font: { family: 'Inter' } }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Line chart update (rate)
+            const rates = stats.rates_last_10m || {};
+            const timeLabels = Object.keys(rates);
+            const rateData = Object.values(rates);
+
+            if (chartRates) {
+                chartRates.data.labels = timeLabels;
+                chartRates.data.datasets[0].data = rateData;
+                chartRates.update();
+            } else {
+                const ctx = document.getElementById('chart-rates').getContext('2d');
+                chartRates = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: timeLabels,
+                        datasets: [{
+                            label: 'Parsed Logs/min',
+                            data: rateData,
+                            borderColor: '#06b6d4',
+                            backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                            fill: true,
+                            tension: 0.3,
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { grid: { color: '#2d3748' }, ticks: { color: '#a0aec0' } },
+                            x: { grid: { color: '#2d3748' }, ticks: { color: '#a0aec0' } }
+                        },
+                        plugins: {
+                            legend: { display: false }
+                        }
+                    }
+                });
+            }
+        }
+
+        async function fetchLogs() {
+            const level = document.getElementById('filter-level').value;
+            const program = document.getElementById('filter-program').value;
+            const keyword = document.getElementById('filter-keyword').value;
+            const sinceVal = document.getElementById('filter-since').value;
+            const untilVal = document.getElementById('filter-until').value;
+
+            let url = `/api/logs?limit=100`;
+            if (level) url += `&level=${level}`;
+            if (program) url += `&program=${encodeURIComponent(program)}`;
+            if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+            if (sinceVal) url += `&since=${encodeURIComponent(formatDateTime(sinceVal))}`;
+            if (untilVal) url += `&until=${encodeURIComponent(formatDateTime(untilVal))}`;
+
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                const tbody = document.getElementById('explorer-logs-table');
+                tbody.innerHTML = '';
+
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-dim">No matching logs found.</td></tr>';
+                    return;
+                }
+
+                data.forEach(log => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="text-nowrap text-dim">${log.timestamp}</td>
+                            <td><span class="level-badge ${log.log_level.toLowerCase()}">${log.log_level}</span></td>
+                            <td class="text-green">${log.source_file}</td>
+                            <td class="text-cyan">${log.program}</td>
+                            <td class="text-dim text-center">${log.pid || '-'}</td>
+                            <td class="text-message font-mono" style="font-size:13px;">${escapeHtml(log.message)}</td>
+                        </tr>
+                    `;
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function searchLogs(e) {
+            e.preventDefault();
+            fetchLogs();
+        }
+
+        async function fetchAlertsTab() {
+            const url = `/api/alerts?limit=50&unresolved_only=${unresolvedAlertsOnly}`;
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                const container = document.getElementById('alerts-list');
+                container.innerHTML = '';
+
+                if (data.length === 0) {
+                    container.innerHTML = `<div class="alert-placeholder card-green">🛡️ System secure. No active alert logs.</div>`;
+                    return;
+                }
+
+                data.forEach(a => {
+                    const resolveBtn = a.resolved === 0 
+                        ? `<button class="btn btn-small btn-success" onclick="resolveAlert(${a.id})">Mark Resolved</button>`
+                        : `<span class="badge green">Resolved</span>`;
+
+                    container.innerHTML += `
+                        <div class="alert-card glass alert-border-${a.severity.toLowerCase()}" id="alert-card-${a.id}">
+                            <div class="alert-header-row">
+                                <span class="alert-badge-label ${a.severity.toLowerCase()}">${a.severity}</span>
+                                <span class="alert-time">${a.timestamp}</span>
+                            </div>
+                            <div class="alert-body-row">
+                                <h4 class="alert-title">${a.alert_type}</h4>
+                                <p class="alert-msg">${escapeHtml(a.message)}</p>
+                            </div>
+                            <div class="alert-actions-row">
+                                ${resolveBtn}
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function resolveAlert(id) {
+            try {
+                const res = await fetch(`/api/alerts/${id}/resolve`, { method: 'POST' });
+                if (res.ok) {
+                    // Visual fade-out effect
+                    const card = document.getElementById(`alert-card-${id}`);
+                    if (card) {
+                        card.style.opacity = '0';
+                        card.style.transform = 'translateY(10px)';
+                        setTimeout(() => {
+                            if (unresolvedAlertsOnly) {
+                                card.remove();
+                                if (document.getElementById('alerts-list').children.length === 0) {
+                                    document.getElementById('alerts-list').innerHTML = 
+                                        `<div class="alert-placeholder card-green">🛡️ System secure. No active alert logs.</div>`;
+                                }
+                            } else {
+                                fetchAlertsTab();
+                            }
+                            // Refresh metrics silently
+                            refreshDashboardStats();
+                        }, 300);
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function toggleUnresolved(only) {
+            unresolvedAlertsOnly = only;
+            document.getElementById('btn-unresolved-alerts').classList.toggle('active', only);
+            document.getElementById('btn-all-alerts').classList.toggle('active', !only);
+            fetchAlertsTab();
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+
+        // Initialize dashboard charts on load
+        window.addEventListener('DOMContentLoaded', () => {
+            refreshDashboardStats();
+            fetchRecentLogs();
+            fetchRecentAlerts();
+            
+            // Poll for updates every 4 seconds to simulate real-time metrics stream
+            setInterval(() => {
+                if (activeTab === 'dashboard') {
+                    refreshDashboardStats();
+                    fetchRecentLogs();
+                    fetchRecentAlerts();
+                }
+            }, 4000);
+        });
+    </script>
+</body>
+</html>

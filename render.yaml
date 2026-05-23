@@ -1,0 +1,26 @@
+# Render service definitions for LogGuard
+# You can import this file in the Render dashboard or use it as a starting point.
+
+services:
+  - type: web
+    name: LogGuard Web
+    runtime: docker
+    branch: main
+    plan: starter
+    buildCommand: ""
+    startCommand: "uvicorn src.web.app:app --host 0.0.0.0 --port 8000 --workers 4"
+    envVars:
+      - key: DB_PATH
+        value: /var/lib/logguard/logguard.db
+        sync: false
+
+  - type: worker
+    name: LogGuard Daemon
+    runtime: docker
+    branch: main
+    plan: starter
+    startCommand: "python -m src.main"
+    envVars:
+      - key: LOGS_DIR
+        value: /var/log
+        sync: false

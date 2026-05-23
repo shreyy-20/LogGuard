@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  # 1. Monitoring Daemon Service
+  daemon:
+    container_name: logguard-daemon
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: python -m src.main
+    volumes:
+      # Mount host logs to monitor them in the container.
+      # For demo/test, we map our local mock logs directory.
+      - ../logs:/app/logs
+      - ../data:/app/data
+    restart: always
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  # 2. FastAPI Web Dashboard Service
+  web:
+    container_name: logguard-web
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: python -m src.web.app
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../logs:/app/logs
+      - ../data:/app/data
+    depends_on:
+      - daemon
+    restart: always
+    environment:
+      - PYTHONUNBUFFERED=1

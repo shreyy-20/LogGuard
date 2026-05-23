@@ -1,0 +1,56 @@
+# Example configuration for LogGuard (remove secrets before committing)
+
+database:
+  db_path: "logguard.db"
+  batch_size: 100
+  flush_interval_seconds: 1.0
+
+sources:
+  - path: "logs/syslog"
+    type: "syslog"
+    name: "System Log"
+  - path: "logs/auth.log"
+    type: "auth"
+    name: "Authentication Log"
+  - path: "logs/kern.log"
+    type: "kern"
+    name: "Kernel Log"
+  - path: "logs/app.log"
+    type: "custom"
+    name: "Custom Application Log"
+    custom_regex: '^\\[(?P<timestamp>[^\\]]+)\\]\s+\\[(?P<level>[^\\]]+)\\]\s+\\[(?P<source>[^\\]]+)\\]\s+(?P<message>.*)$'
+    custom_timestamp_format: "%Y-%m-%d %H:%M:%S"
+
+rules:
+  brute_force:
+    enabled: true
+    threshold_attempts: 5
+    window_seconds: 60
+    alert_severity: "CRITICAL"
+
+  repeated_failures:
+    enabled: true
+    threshold_repeats: 10
+    window_seconds: 30
+    alert_severity: "WARNING"
+
+  critical_keywords:
+    - pattern: "(?i)out of memory|oom-killer"
+      severity: "CRITICAL"
+      category: "Resource Exhaustion"
+      message: "System running out of memory (OOM Killer triggered)"
+
+notifications:
+  desktop:
+    enabled: true
+    timeout_seconds: 5
+  email:
+    enabled: false
+    # Do NOT store real credentials here. Use environment variables or
+    # a secret manager when deploying.
+    smtp_host: "smtp.gmail.com"
+    smtp_port: 587
+    smtp_username: "alerts@example.com"
+    smtp_password: "CHANGE_ME"
+    from_email: "logguard-alerts@example.com"
+    to_email: "admin@example.com"
