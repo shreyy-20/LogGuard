@@ -9,18 +9,29 @@ jobs:
   deploy:
     name: Trigger Render Deploys
     runs-on: ubuntu-latest
+    env:
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      RENDER_SERVICE_ID_WEB: ${{ secrets.RENDER_SERVICE_ID_WEB || vars.RENDER_SERVICE_ID_WEB }}
     steps:
-      - name: Validate Render deploy secrets
+      - name: Validate Render deploy configuration
         run: |
-          if [ -z "${{ secrets.RENDER_API_KEY }}" ] || [ -z "${{ secrets.RENDER_SERVICE_ID_WEB }}" ]; then
-            echo "ERROR: Render deploy secrets are required. Set RENDER_API_KEY and RENDER_SERVICE_ID_WEB."
+          missing=()
+
+          if [ -z "$RENDER_API_KEY" ]; then
+            missing+=("RENDER_API_KEY (GitHub secret)")
+          fi
+
+          if [ -z "$RENDER_SERVICE_ID_WEB" ]; then
+            missing+=("RENDER_SERVICE_ID_WEB (GitHub secret or repository variable)")
+          fi
+
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "ERROR: Missing Render deploy configuration:"
+            printf ' - %s\n' "${missing[@]}"
             exit 1
           fi
 
       - name: Trigger Render Web Deploy
-        env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          RENDER_SERVICE_ID_WEB: ${{ secrets.RENDER_SERVICE_ID_WEB }}
         run: |
           set -e
           echo "Triggering Render deploy for web service..."
